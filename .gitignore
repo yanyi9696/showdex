@@ -1,6 +1,7 @@
 build/
 cache/
 dist/
+release/
 
 node_modules/
 npm-debug.*
