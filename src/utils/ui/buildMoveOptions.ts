@@ -61,8 +61,18 @@ export const buildMoveOptions = (
 
   const dex = getDexForFormat(format);
   const gen = detectGenFromFormat(format);
+  const formatAsId = formatId(format);
   const legalLocked = legalLockedFormat(format);
   const showAllMoves = include === 'all' || !legalLocked;
+
+  const moveDex = (dex as any)?.getMovedex?.()
+    || (((formatAsId.includes('fantasy') || /^gen(10|\d)fc/i.test(formatAsId)) && (window as any).Gen9fantasyMovedex) as Record<string, any>)
+    || BattleMovedex
+    || {};
+
+  const moveNamesFromDex = Object.keys(moveDex)
+    .map((moveid) => dex.moves.get(moveid)?.name as MoveName)
+    .filter(Boolean);
 
   const ability = pokemon.dirtyAbility ?? pokemon.ability;
   const item = pokemon.dirtyItem ?? pokemon.item;
@@ -280,8 +290,7 @@ export const buildMoveOptions = (
   if (includeHiddenPower) {
     // regex filters out 'hiddenpowerfighting70', which is 'hiddenpowerfighting' (BP 60),
     // but with a BP of 70 lol (don't care about the BP here though, we just need the name)
-    const unsortedHpMoves = Object.keys(BattleMovedex || {})
-      .map((moveid) => dex.moves.get(moveid)?.name as MoveName)
+    const unsortedHpMoves = moveNamesFromDex
       .filter((n) => !!n && /^hiddenpower[a-z]*$/i.test(formatId(n)) && !filterMoves.includes(n));
 
     // using a Set makes sure we have no duplicate entries in the array
@@ -315,8 +324,7 @@ export const buildMoveOptions = (
 
   // show all possible moves if the format is not legal-locked or no learnset is available
   if (showAllMoves || !learnset.length) {
-    const otherMoves = Object.keys(BattleMovedex || {})
-      .map((moveid) => dex.moves.get(moveid)?.name as MoveName)
+    const otherMoves = moveNamesFromDex
       .filter((n) => !!n && !/^(?:G-)?Max\s+|Hidden\s*Power/i.test(n) && !filterMoves.includes(n))
       .sort(usageSorter);
 

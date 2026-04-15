@@ -28,49 +28,72 @@ const l = logger('@showdex/main');
 
 l.debug('Starting', env('build-name', 'showdex'));
 
-// first gotta make sure we're in Showdown
-if (
-  typeof window?.Dex?.gen !== 'number'
-    || typeof window.Dex.forGen !== 'function'
-    || (
-      typeof window.app?.receive !== 'function'
-        && typeof window.PS?.startTime !== 'number'
+const isShowdownReady = (): boolean => (
+  typeof window?.Dex?.gen === 'number'
+    && typeof window.Dex.forGen === 'function'
+    && (
+      typeof window.app?.receive === 'function'
+        || typeof window.PS?.startTime === 'number'
+        || typeof window.PS?.join === 'function'
     )
-) {
-  l.error(
-    'main may have executed too fast or we\'re not in Showdown anymore...',
-    '\n', 'window.Dex', '(typeof)', wtf(window?.Dex), window?.Dex,
-    '\n', 'window.app', '(typeof)', wtf(window?.app), window?.app,
-    '\n', 'window.PS', '(typeof)', wtf(window?.PS), window?.PS,
-  );
+);
 
-  throw new Error('Showdex attempted to start in an unsupported website.');
-}
+const waitForShowdownReady = async (
+  timeout = 10000,
+  interval = 100,
+): Promise<boolean> => {
+  const startedAt = Date.now();
 
-// not sure when we'll run into this, but it's entirely possible now that standalone builds are a thing
-if (window.__SHOWDEX_INIT) {
-  l.error(
-    'yo dawg I heard you wanted Showdex with your Showdex',
-    '\n', '__SHOWDEX_INIT', window.__SHOWDEX_INIT,
-    '\n', '__SHOWDEX_HOST', window.__SHOWDEX_HOST,
-    '\n', 'BUILD_NAME', env('build-name'),
-  );
+  while (Date.now() - startedAt < timeout) {
+    if (isShowdownReady()) {
+      return true;
+    }
 
-  throw new Error('Another Showdex tried to load despite one already being loaded.');
-}
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
 
-// basically using this as a Showdex init mutex lock lol
-window.__SHOWDEX_INIT = env('build-name', 'showdex');
-
-// determine if we're in that new new preact mode or nahhhhh
-// ("new" at the time of me writing this on 2025/08/08, anyway)
-window.__SHOWDEX_HOST = (detectPreactHost(window) && 'preact')
-  || (detectClassicHost(window) && 'classic')
-  || null;
+  return isShowdownReady();
+};
 
 // note: don't inline await, otherwise, there'll be a race condition with the login
 // (also makes the Hellodex not appear immediately when Showdown first opens)
 void (async () => {
+  // private servers can initialize Showdown runtime a little later than content-script injection.
+  const showdownReady = await waitForShowdownReady();
+
+  // first gotta make sure we're in Showdown
+  if (!showdownReady) {
+    l.error(
+      'main may have executed too fast or we\'re not in Showdown anymore...',
+      '\n', 'window.Dex', '(typeof)', wtf(window?.Dex), window?.Dex,
+      '\n', 'window.app', '(typeof)', wtf(window?.app), window?.app,
+      '\n', 'window.PS', '(typeof)', wtf(window?.PS), window?.PS,
+    );
+
+    throw new Error('Showdex attempted to start in an unsupported website.');
+  }
+
+  // not sure when we'll run into this, but it's entirely possible now that standalone builds are a thing
+  if (window.__SHOWDEX_INIT) {
+    l.error(
+      'yo dawg I heard you wanted Showdex with your Showdex',
+      '\n', '__SHOWDEX_INIT', window.__SHOWDEX_INIT,
+      '\n', '__SHOWDEX_HOST', window.__SHOWDEX_HOST,
+      '\n', 'BUILD_NAME', env('build-name'),
+    );
+
+    throw new Error('Another Showdex tried to load despite one already being loaded.');
+  }
+
+  // basically using this as a Showdex init mutex lock lol
+  window.__SHOWDEX_INIT = env('build-name', 'showdex');
+
+  // determine if we're in that new new preact mode or nahhhhh
+  // ("new" at the time of me writing this on 2025/08/08, anyway)
+  window.__SHOWDEX_HOST = (detectPreactHost(window) && 'preact')
+    || (detectClassicHost(window) && 'classic')
+    || null;
+
   switch (window.__SHOWDEX_HOST) {
     case 'preact': {
       l.silly(

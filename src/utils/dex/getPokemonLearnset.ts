@@ -7,6 +7,47 @@ import { guessTableFormatKey } from './guessTableFormatKey';
 
 const l = logger('@showdex/utils/dex/getPokemonLearnset()');
 
+const FantasyFormatRegex = /^gen(10|\d)fc/i;
+
+const normalizeLearnsets = (
+  source?: Record<string, any>,
+): Record<string, Record<string, string | string[]>> => {
+  if (!nonEmptyObject(source)) {
+    return {};
+  }
+
+  return Object.entries(source).reduce((prev, [speciesId, value]) => {
+    if (nonEmptyObject(value?.learnset)) {
+      prev[speciesId] = value.learnset;
+
+      return prev;
+    }
+
+    if (nonEmptyObject(value)) {
+      prev[speciesId] = value;
+    }
+
+    return prev;
+  }, {} as Record<string, Record<string, string | string[]>>);
+};
+
+const hasLearnsetInGen = (
+  learnsetGenValue: string | string[],
+  gen: GenerationNum,
+): boolean => {
+  if (typeof learnsetGenValue === 'string') {
+    return learnsetGenValue.includes(String(gen));
+  }
+
+  if (Array.isArray(learnsetGenValue)) {
+    return learnsetGenValue
+      .filter((v) => typeof v === 'string')
+      .some((v) => v.startsWith(String(gen)));
+  }
+
+  return false;
+};
+
 /**
  * Returns the legal learnsets of the passed-in `speciesForme`.
  *
@@ -27,19 +68,54 @@ export const getPokemonLearnset = (
   speciesForme: string,
   ignoreGen?: boolean,
 ): MoveName[] => {
-  if (!nonEmptyObject(BattleTeambuilderTable?.learnsets) || !format || !speciesForme) {
+  if (!format || !speciesForme) {
     return [];
   }
 
   const gen = detectGenFromFormat(format, env.int<GenerationNum>('calcdex-default-gen'));
   const dex = getDexForFormat(format);
 
+  if (!ignoreGen && typeof (dex as any)?.getLearnsetMoves === 'function') {
+    try {
+      const dexLearnsetMoves = ((dex as any).getLearnsetMoves({ species: speciesForme }) || []) as string[];
+
+      const learnsetFromDex = Array.from(new Set(
+        dexLearnsetMoves
+          .map((moveid) => dex.moves.get(moveid)?.name as MoveName)
+          .filter(Boolean),
+      )).sort();
+
+      if (learnsetFromDex.length) {
+        return learnsetFromDex;
+      }
+    } catch (error) {
+      if (__DEV__) {
+        l.debug('ModdedDex#getLearnsetMoves() failed, falling back to table learnsets.', error);
+      }
+    }
+  }
+
+  const formatAsId = formatId(format);
+  const fantasyFormat = formatAsId.includes('fantasy') || FantasyFormatRegex.test(formatAsId);
+
+  const fantasyLearnsets = fantasyFormat
+    ? normalizeLearnsets(((window as any).Gen9fantasyLearnsets
+      || (window as any).Gen9fantasyTable?.learnsets) as Record<string, any>)
+    : {};
+
+  const hasBattleTableLearnsets = nonEmptyObject(BattleTeambuilderTable?.learnsets);
+
+  if (!hasBattleTableLearnsets && !nonEmptyObject(fantasyLearnsets)) {
+    return [];
+  }
+
   // note: not all formats (like metronome) include learnsets, hence the conditional spreading below
   const formatKey = guessTableFormatKey(format);
 
   const learnsets = {
-    ...BattleTeambuilderTable.learnsets,
-    ...(!!formatKey && BattleTeambuilderTable[formatKey]?.learnsets),
+    ...(hasBattleTableLearnsets ? normalizeLearnsets(BattleTeambuilderTable.learnsets) : {}),
+    ...(!!formatKey ? normalizeLearnsets(BattleTeambuilderTable[formatKey]?.learnsets) : {}),
+    ...fantasyLearnsets,
   };
 
   // find all the species (including previous evolutions) to lookup learnsets for
@@ -104,7 +180,7 @@ export const getPokemonLearnset = (
 
         // e.g., { attract: '45678pqg', auroraveil: '8g', ... }
         return Object.entries(learnsets[learnsetKey])
-          .filter(([, gens]) => ignoreGen || gens.includes(String(gen)))
+          .filter(([, gens]) => ignoreGen || hasLearnsetInGen(gens, gen))
           .map(([id]) => dex.moves.get(id)?.name as MoveName)
           .filter(Boolean);
       }),

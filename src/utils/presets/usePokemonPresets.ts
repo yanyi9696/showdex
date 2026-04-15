@@ -9,7 +9,7 @@ import {
   usePokemonRandomsStatsQuery,
 } from '@showdex/redux/services';
 import { useCalcdexSettings } from '@showdex/redux/store';
-import { formatId } from '@showdex/utils/core';
+import { env, formatId } from '@showdex/utils/core';
 // import { logger } from '@showdex/utils/debug';
 import { detectGenFromFormat, getGenlessFormat } from '@showdex/utils/dex';
 // import { fileSize } from '@showdex/utils/humanize';
@@ -127,6 +127,9 @@ export const usePokemonPresets = (
   const gen = detectGenFromFormat(format);
   const genlessFormat = getGenlessFormat(format); // e.g., 'gen8randombattle' -> 'randombattle'
   const randoms = genlessFormat?.includes('random');
+  const presetsBaseUrl = env('pkmn-presets-base-url', 'https://pkmn.github.io');
+  const usingOfficialPresetsApi = /(^https?:\/\/)?([a-z0-9-]+\.)*pkmn\.github\.io\/?$/i.test(presetsBaseUrl);
+  const forceFormatOnly = !usingOfficialPresetsApi;
 
   // const speciesForme = pokemon?.transformedForme || pokemon?.speciesForme; // e.g., 'Necrozma-Ultra'
   // const formes = getPresetFormes(speciesForme, format, true);
@@ -152,6 +155,7 @@ export const usePokemonPresets = (
   } = usePokemonFormatPresetQuery({
     gen,
     format,
+    formatOnly: forceFormatOnly,
     maxAge,
   }, {
     skip: shouldSkipFormats,

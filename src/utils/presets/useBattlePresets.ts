@@ -10,6 +10,7 @@ import {
 } from '@showdex/redux/services';
 import { useCalcdexSettings, useTeamdexPresets } from '@showdex/redux/store';
 // import { logger } from '@showdex/utils/debug';
+import { env } from '@showdex/utils/core';
 import {
   detectGenFromFormat,
   getGenfulFormat,
@@ -193,6 +194,9 @@ export const useBattlePresets = (
   const gen = detectGenFromFormat(format);
   const genlessFormat = getGenlessFormat(format);
   const randoms = genlessFormat?.includes('random');
+  const presetsBaseUrl = env('pkmn-presets-base-url', 'https://pkmn.github.io');
+  const usingOfficialPresetsApi = /(^https?:\/\/)?([a-z0-9-]+\.)*pkmn\.github\.io\/?$/i.test(presetsBaseUrl);
+  const forceFormatOnly = !usingOfficialPresetsApi;
 
   const teambuilderPresets = React.useMemo(() => (
     includeTeambuilder !== 'never'
@@ -211,7 +215,7 @@ export const useBattlePresets = (
   ]);
 
   const shouldSkipAny = disabled || !gen || !genlessFormat;
-  const shouldSkipBundles = shouldSkipAny || !includePresetsBundles?.length;
+  const shouldSkipBundles = shouldSkipAny || !includePresetsBundles?.length || forceFormatOnly;
   const shouldSkipFormats = shouldSkipAny || randoms || !downloadSmogonPresets;
   const shouldSkipFormatStats = shouldSkipAny || randoms || !downloadUsageStats;
   const shouldSkipRandoms = shouldSkipAny || !randoms || !downloadRandomsPresets;
@@ -235,6 +239,7 @@ export const useBattlePresets = (
   } = usePokemonFormatPresetQuery({
     gen,
     format,
+    formatOnly: forceFormatOnly,
     maxAge,
   }, {
     skip: shouldSkipFormats,

@@ -5,6 +5,8 @@ import { detectGenFromFormat } from './detectGenFromFormat';
 
 const l = logger('@showdex/utils/dex/getDexForFormat()');
 
+const FantasyFormatRegex = /^gen(10|\d)fc/i;
+
 /**
  * Returns the appropriate `Dex` object for the passed-in `format`.
  *
@@ -41,6 +43,35 @@ export const getDexForFormat = (format?: string | GenerationNum): Showdown.Modde
   }
 
   const formatAsId = formatId(format);
+  const gen = detectGenFromFormat(formatAsId);
+
+  const fantasyFormat = formatAsId.includes('fantasy')
+    || FantasyFormatRegex.test(formatAsId);
+
+  if (fantasyFormat) {
+    const fallbackFantasyMod = 'gen9fantasy';
+    const fantasyMod = gen ? (`gen${gen}fantasy` as Showdown.ID) : fallbackFantasyMod as Showdown.ID;
+
+    const modCandidates = [
+      formatAsId as Showdown.ID,
+      fantasyMod,
+      fallbackFantasyMod as Showdown.ID,
+    ];
+
+    for (const modid of modCandidates) {
+      try {
+        const moddedDex = Dex.mod(modid);
+
+        if (moddedDex?.species?.get?.('pikachu')?.exists) {
+          return moddedDex;
+        }
+      } catch (error) {
+        if (__DEV__) {
+          l.debug('Fantasy mod lookup failed for', modid, error);
+        }
+      }
+    }
+  }
 
   if (formatAsId.includes('letsgo')) {
     return Dex.mod('gen7letsgo');
@@ -49,8 +80,6 @@ export const getDexForFormat = (format?: string | GenerationNum): Showdown.Modde
   if (formatAsId.includes('bdsp')) {
     return Dex.mod('gen8bdsp');
   }
-
-  const gen = detectGenFromFormat(formatAsId);
 
   if (typeof gen !== 'number' || gen < 1) {
     return Dex;

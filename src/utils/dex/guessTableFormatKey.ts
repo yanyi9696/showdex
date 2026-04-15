@@ -19,6 +19,7 @@ import { detectGenFromFormat } from './detectGenFromFormat';
  */
 const KnownFormats: [test: RegExp, replacement: string][] = [
   [/hackmons?|(?:bh$)/, 'bh'],
+  [/^gen(\d)(?:fc|.*fantasy)/, 'gen$1fantasy'],
   [/bdsp.*(doubles)?/, 'gen8bdsp$1'],
   [/letsgo/, 'gen7letsgo'],
   [/vgc2020/, 'gen8dlc1doubles'],

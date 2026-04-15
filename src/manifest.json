@@ -21,13 +21,17 @@
   "permissions": [
     "*://play.pokemonshowdown.com/*",
     "*://*.psim.us/*",
-    "*://play.radicalred.net/*"
+    "*://play.radicalred.net/*",
+    "*://psfantasy.xyz/*",
+    "*://*.psfantasy.xyz/*"
   ],
 
   "host_permissions": [
     "https://play.pokemonshowdown.com/*",
     "https://pkmn.github.io/*",
-    "https://bake.dex.tize.io/*"
+    "https://bake.dex.tize.io/*",
+    "https://psfantasy.xyz/*",
+    "https://*.psfantasy.xyz/*"
   ],
 
   "externally_connectable": {

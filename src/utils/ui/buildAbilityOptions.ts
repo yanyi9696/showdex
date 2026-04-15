@@ -2,7 +2,7 @@ import { type AbilityName } from '@smogon/calc';
 import { type DropdownOption } from '@showdex/components/form';
 import { type CalcdexPokemon, type CalcdexPokemonAlt, type CalcdexPokemonUsageAlt } from '@showdex/interfaces/calc';
 import { dedupeArray, formatId } from '@showdex/utils/core';
-import { detectGenFromFormat, detectLegacyGen, legalLockedFormat } from '@showdex/utils/dex';
+import { detectGenFromFormat, detectLegacyGen, getDexForFormat, legalLockedFormat } from '@showdex/utils/dex';
 import { percentage } from '@showdex/utils/humanize';
 import {
   type CalcdexPokemonUsageAltSorter,
@@ -31,6 +31,17 @@ export const buildAbilityOptions = (
   },
 ): CalcdexPokemonAbilityOption[] => {
   const options: CalcdexPokemonAbilityOption[] = [];
+  const formatAsId = formatId(format);
+  const dex = getDexForFormat(format);
+
+  const abilityDex = (((formatAsId.includes('fantasy') || /^gen(10|\d)fc/i.test(formatAsId))
+    && (window as any).Gen9fantasyAbilities) as Record<string, any>)
+    || BattleAbilities
+    || {};
+
+  const abilityNamesFromDex = Object.keys(abilityDex)
+    .map((abilityId) => dex?.abilities?.get?.(abilityId)?.name as AbilityName)
+    .filter(Boolean);
 
   // for legacy formats, the dex will return a 'No Ability' ability,
   // so make sure we return an empty array
@@ -184,8 +195,7 @@ export const buildAbilityOptions = (
   // show all possible abilities if format is not provided, is not legal-locked, or
   // no legal abilities are available (probably because the Pokemon doesn't exist in the `dex`'s gen)
   if (showAll || !legalLockedFormat(format) || !abilities?.length) {
-    const otherAbilities = Object.values(BattleAbilities || {})
-      .map((a) => a?.name as AbilityName)
+    const otherAbilities = abilityNamesFromDex
       .filter((n) => !!n && formatId(n) !== 'noability' && !filterAbilities.includes(n))
       .sort(usageSorter);
 

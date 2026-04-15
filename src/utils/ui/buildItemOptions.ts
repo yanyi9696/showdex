@@ -3,7 +3,7 @@ import { type DropdownOption } from '@showdex/components/form';
 import { eacute } from '@showdex/consts/core';
 import { type CalcdexPokemon, type CalcdexPokemonAlt, type CalcdexPokemonUsageAlt } from '@showdex/interfaces/calc';
 import { formatId, nonEmptyObject } from '@showdex/utils/core';
-import { detectGenFromFormat, guessTableFormatKey } from '@showdex/utils/dex';
+import { detectGenFromFormat, getDexForFormat, guessTableFormatKey } from '@showdex/utils/dex';
 import { percentage } from '@showdex/utils/humanize';
 import {
   type CalcdexPokemonUsageAltSorter,
@@ -79,6 +79,17 @@ export const buildItemOptions = (
 ): CalcdexPokemonItemOption[] => {
   const gen = detectGenFromFormat(format);
   const options: CalcdexPokemonItemOption[] = [];
+  const formatAsId = formatId(format);
+  const dex = getDexForFormat(format);
+
+  const itemDex = (((formatAsId.includes('fantasy') || /^gen(10|\d)fc/i.test(formatAsId))
+    && (window as any).Gen9fantasyItems) as Record<string, any>)
+    || BattleItems
+    || {};
+
+  const itemNamesFromDex = Object.keys(itemDex)
+    .map((itemId) => dex?.items?.get?.(itemId)?.name as ItemName)
+    .filter(Boolean);
 
   if (!pokemon?.speciesForme || gen < 2) {
     return options;
@@ -273,8 +284,7 @@ export const buildItemOptions = (
   }
 
   if (!nonEmptyObject(items)) {
-    const allItems = Object.values(BattleItems || {})
-      .map((item) => item?.name as ItemName)
+    const allItems = itemNamesFromDex
       .filter((n) => !!n && !filterItems.includes(n))
       .sort(usageSorter);
 
@@ -294,8 +304,7 @@ export const buildItemOptions = (
     }
   }
 
-  const otherItems = Object.values(BattleItems || {})
-    .map((item) => item?.name as ItemName)
+  const otherItems = itemNamesFromDex
     .filter((n) => !!n && !filterItems.includes(n))
     .sort(usageSorter);
 

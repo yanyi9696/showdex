@@ -17,7 +17,7 @@ import {
   guessServerSpread,
   populateStatsTable,
 } from '@showdex/utils/calc';
-import { formatId, nonEmptyObject } from '@showdex/utils/core';
+import { env, formatId, nonEmptyObject } from '@showdex/utils/core';
 import { logger, runtimer } from '@showdex/utils/debug';
 import { determineTerrain, determineWeather, getGenlessFormat } from '@showdex/utils/dex';
 import {
@@ -327,8 +327,10 @@ export const useCalcdexPresets = (
 
         // pre-select presets for each possible prioritizePresetSource value
         // (note: key ordering of this object doesn't matter -- we'll construct an array of keys based on the user's setting after)
-        const preselections: Partial<Record<typeof settings.prioritizePresetSource, CalcdexPokemonPreset[]>> = {
-          smogon: [
+        const presetsBaseUrl = env('pkmn-presets-base-url', 'https://pkmn.github.io');
+        const usingOfficialPresetsApi = /(^https?:\/\/)?([a-z0-9-]+\.)*pkmn\.github\.io\/?$/i.test(presetsBaseUrl);
+        const smogonPreselections = usingOfficialPresetsApi
+          ? [
             ...selectPokemonPresets(pokemonPresets, pokemon, {
               format: state.format,
               formatOnly: true,
@@ -343,7 +345,26 @@ export const useCalcdexPresets = (
               select: 'one',
               // filter: (p) => ['smogon', 'bundle'].includes(p?.source), // actually nvm, can't guarantee the order using this
             }),
-          ],
+          ]
+          : [
+            ...selectPokemonPresets(pokemonPresets, pokemon, {
+              format: state.format,
+              formatOnly: true,
+              source: 'smogon',
+              select: 'one',
+              // filter: (p) => ['smogon', 'bundle'].includes(p?.source), // actually nvm, can't guarantee the order using this
+            }),
+
+            ...selectPokemonPresets(pokemonPresets, pokemon, {
+              format: state.format,
+              formatOnly: true,
+              source: 'bundle',
+              select: 'one',
+            }),
+          ];
+
+        const preselections: Partial<Record<typeof settings.prioritizePresetSource, CalcdexPokemonPreset[]>> = {
+          smogon: smogonPreselections,
 
           ...(!randoms && {
             usage: [usage],
