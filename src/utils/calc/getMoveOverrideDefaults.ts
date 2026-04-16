@@ -1,7 +1,7 @@
 import { type AbilityName, type ItemName, type MoveName } from '@smogon/calc';
 import { type CalcdexBattleField, type CalcdexPokemon, type CalcdexMoveOverride } from '@showdex/interfaces/calc';
 import { PokemonDynamicCategoryMoves, PokemonDynamicPowerMoves } from '@showdex/consts/dex';
-import { clamp } from '@showdex/utils/core';
+import { clamp, formatId as id } from '@showdex/utils/core';
 import {
   alwaysCriticalHits,
   determineMoveTargets,
@@ -9,7 +9,7 @@ import {
   getDynamicMoveType,
   getMaxMove,
 } from '@showdex/utils/dex';
-// import { calcBoostedStats } from './calcBoostedStats';
+import { calcBoostedStats } from './calcBoostedStats';
 import { calcMoveBasePower } from './calcMoveBasePower';
 import { calcMoveHitBasePowers } from './calcMoveHitBasePowers';
 
@@ -54,6 +54,7 @@ export const getMoveOverrideDefaults = (
   const teraType = dirtyTeraType || revealedTeraType;
   const stellarastallized = teraType === 'Stellar' && terastallized;
   const ability = dirtyAbility || revealedAbility;
+  const abilityId = id(ability);
   const item = dirtyItem ?? revealedItem;
 
   const {
@@ -143,6 +144,7 @@ export const getMoveOverrideDefaults = (
 
   const {
     // ignoreDefensive,
+    overrideOffensivePokemon,
     overrideDefensiveStat,
     overrideOffensiveStat,
   } = { ...determineMoveTargets(format, pokemon, moveName) };
@@ -153,6 +155,20 @@ export const getMoveOverrideDefaults = (
 
   if (overrideOffensiveStat) {
     output.offensiveStat = overrideOffensiveStat;
+  }
+
+  // Custom gen9fantasy ability: use the higher of ATK/SPA for Physical/Special moves.
+  // We only apply this when the move itself doesn't force a specific offensive Pokemon/stat.
+  if (!overrideOffensivePokemon && !overrideOffensiveStat && abilityId === 'jizhineng') {
+    const boostedStats = calcBoostedStats(format, pokemon);
+    const atk = boostedStats?.atk || 0;
+    const spa = boostedStats?.spa || 0;
+
+    if (output.category === 'Physical' && spa > atk) {
+      output.offensiveStat = 'spa';
+    } else if (output.category === 'Special' && atk > spa) {
+      output.offensiveStat = 'atk';
+    }
   }
 
   return output;
