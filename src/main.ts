@@ -75,6 +75,7 @@ void (async () => {
 
   // not sure when we'll run into this, but it's entirely possible now that standalone builds are a thing
   if (window.__SHOWDEX_INIT) {
+    if (env.bool('fantasy-embedded')) return;
     l.error(
       'yo dawg I heard you wanted Showdex with your Showdex',
       '\n', '__SHOWDEX_INIT', window.__SHOWDEX_INIT,

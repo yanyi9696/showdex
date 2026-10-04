@@ -12,6 +12,10 @@ export const getResourceUrl = (
   const protocol = getExtensionProtocol();
 
   if (env('build-target') === 'standalone') {
+    if (env.bool('fantasy-embedded')) {
+      const script = document.querySelector<HTMLScriptElement>('script[data-fantasy-showdex]');
+      if (script?.src) return new URL(fileName, new URL('.', script.src)).href;
+    }
     const prefix = env('standalone-resource-prefix');
 
     return (

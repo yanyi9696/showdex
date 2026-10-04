@@ -8,7 +8,7 @@ import { type DropdownOption } from '@showdex/components/form';
 import { PiconRackContext } from '@showdex/components/layout';
 import { type CalcdexPlayerKey } from '@showdex/interfaces/calc';
 import { useColorScheme } from '@showdex/redux/store';
-import { clamp, env } from '@showdex/utils/core';
+import { clamp, env, getResourceUrl } from '@showdex/utils/core';
 import { logger } from '@showdex/utils/debug';
 import { useRandomUuid } from '@showdex/utils/hooks';
 import { CalcdexPokeProvider } from '../CalcdexPokeContext';
@@ -177,6 +177,13 @@ export const PlayerCalc = ({
       )}
       style={style}
     >
+      {env.bool('fantasy-embedded') && playerKey !== authPlayerKey && (
+        <div style={{ padding: '6px 10px', fontSize: 12, lineHeight: 1.5 }}>
+          <strong>对手配置：未公开项为假设</strong>
+          <div>未公开的道具、特性、太晶属性、性格、个体值与努力值均非实测，可在下方面板修改。结果按当前面板计算。</div>
+          <a href={getResourceUrl('source.tar.gz')}>Showdex 源码（AGPL-3.0）</a>
+        </div>
+      )}
       <div className={styles.playerBar}>
         {/* {
           operatingMode === 'battle' &&

@@ -9,7 +9,7 @@ import { CalcdexPlayerKeys as AllPlayerKeys } from '@showdex/interfaces/calc';
 import { calcdexSlice } from '@showdex/redux/store';
 import { tRef } from '@showdex/utils/app';
 import { detectAuthPlayerKeyFromBattle } from '@showdex/utils/battle';
-import { formatId, nonEmptyObject } from '@showdex/utils/core';
+import { env, formatId, nonEmptyObject } from '@showdex/utils/core';
 import { logger, wtf } from '@showdex/utils/debug';
 import { detectClassicHost } from '@showdex/utils/host';
 import { BootdexClassicBootstrappable } from '../Bootdex/BootdexClassicBootstrappable';
@@ -863,6 +863,10 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
     ); */
 
     this.renderCalcdex(calcdexReactRoot);
+
+    if (env.bool('fantasy-embedded') && this.battle.calcdexAsOverlay && !this.battleState?.overlayVisible) {
+      this.battleRoom.toggleCalcdexOverlay?.();
+    }
 
     l.debug(
       'About to inject some real filth into battle.subscribe()...',

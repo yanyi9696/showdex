@@ -10,6 +10,7 @@ import { createEnvParser } from './createEnvParser';
  * @todo automate me plz
  */
 export const env = createEnvParser({
+  FANTASY_EMBEDDED: process.env.FANTASY_EMBEDDED,
   BAKEDEX_API_PREFIX: process.env.BAKEDEX_API_PREFIX,
   BAKEDEX_BASE_URL: process.env.BAKEDEX_BASE_URL,
   BAKEDEX_ENABLED: process.env.BAKEDEX_ENABLED,

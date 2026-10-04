@@ -46,6 +46,9 @@ const playerAutoNonce = (
     .map((p) => [
       p.calcdexId,
       operatingMode === 'standalone' && p.speciesForme,
+      // A spectator may receive their own private request only after logging in.
+      // Revisit the preset when those stats arrive, even with auto-preset disabled.
+      p.source === 'server' && JSON.stringify([p.serverStats, p.serverMoves]),
       p.autoPreset ? [p.ability || '?', p.item || '?', ...(p.revealedMoves || [])].join(',') : p.presetId,
     ].filter(Boolean).join('~'))
     .join(':')
@@ -574,6 +577,13 @@ export const useCalcdexPresets = (
         // if no preset is applied, forcibly open the Pokemon's stats to alert the user
         // (also more the case in 'standalone' mode, reset some fields in case they were from a prior Pokemon w/ a preset)
         if (!preset?.calcdexId) {
+          if (env.bool('fantasy-embedded')) {
+            // Unknown sets are editable assumptions. A teammate's newly received
+            // server preset must not reset manually entered opponent assumptions.
+            pokemon.showGenetics = true;
+            pokemon.autoPreset = false;
+            return;
+          }
           // update (2024/07/19): apparently some peeps were experiencing level discrepancies still, so I'm guessing this
           // might be the culprit since it looks like I added this part for the Honkdex & probs forgot about 'battle' modes LOL
           // pokemon.level = state.defaultLevel;

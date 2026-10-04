@@ -11,7 +11,7 @@ import {
   type ShowdexSettings,
   type ShowdexShowdownSettings,
 } from '@showdex/interfaces/app';
-import { reverseObjectKv } from '@showdex/utils/core';
+import { env, reverseObjectKv } from '@showdex/utils/core';
 
 /**
  * Default Showdex settings.
@@ -27,7 +27,7 @@ export const DefaultShowdexSettings: ShowdexSettings = {
   developerMode: __DEV__,
 
   hellodex: {
-    openOnStart: true,
+    openOnStart: !env.bool('fantasy-embedded'),
     focusRoomsRoom: false,
     showBattleRecord: true,
     showDonateButton: true,
@@ -35,7 +35,7 @@ export const DefaultShowdexSettings: ShowdexSettings = {
 
   calcdex: {
     openOnStart: 'always',
-    openAs: 'showdown',
+    openAs: env.bool('fantasy-embedded') ? 'panel' : 'showdown',
     openOnPanel: 'showdown',
     closeOn: 'battle-tab',
     destroyOnClose: true,
@@ -57,9 +57,9 @@ export const DefaultShowdexSettings: ShowdexSettings = {
     showNonDamageRanges: true,
     includeHazardsDamage: true,
     includeEotDamage: false,
-    downloadSmogonPresets: true,
-    downloadRandomsPresets: true,
-    downloadUsageStats: true,
+    downloadSmogonPresets: !env.bool('fantasy-embedded'),
+    downloadRandomsPresets: !env.bool('fantasy-embedded'),
+    downloadUsageStats: !env.bool('fantasy-embedded'),
     presetDisplaySyntax: 'auto',
     maxPresetAge: 3,
     prioritizePresetSource: 'smogon',
@@ -70,10 +70,10 @@ export const DefaultShowdexSettings: ShowdexSettings = {
 
     defaultAutoPreset: {
       auth: false,
-      p1: true,
-      p2: true,
-      p3: true,
-      p4: true,
+      p1: !env.bool('fantasy-embedded'),
+      p2: !env.bool('fantasy-embedded'),
+      p3: !env.bool('fantasy-embedded'),
+      p4: !env.bool('fantasy-embedded'),
     },
 
     defaultAutoMoves: {
