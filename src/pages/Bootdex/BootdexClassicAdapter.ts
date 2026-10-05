@@ -36,6 +36,11 @@ export class BootdexClassicAdapter extends BootdexAdapter {
 
     l.debug('Hooking into the client\'s app.receive()...');
 
+    // An embedded script may start after the initial updateuser message.
+    if (window.app.user?.attributes?.named) {
+      this.authUsername = window.app.user.attributes.name;
+    }
+
     this.__appReceive = window.app.receive.bind(window.app) as Showdown.ClientApp['receive'];
     window.app.receive = (data: string): void => {
       // call the original function
@@ -86,21 +91,7 @@ export class BootdexClassicAdapter extends BootdexAdapter {
           return void this.__mutex.battleBuf.push([roomId, data]);
         }
 
-        let receiver = this.battleReceiverNamed(roomId);
-
-        if (!receiver && typeof this.receiverFactory === 'function') {
-          receiver = this.receiverFactory(roomId);
-
-          if (typeof receiver === 'function') {
-            this.addBattleReceiver(roomId, receiver);
-          }
-        }
-
-        if (typeof receiver !== 'function') {
-          return;
-        }
-
-        receiver(data);
+        this.receiveBattle(roomId, data);
       }
     };
 
@@ -135,11 +126,40 @@ export class BootdexClassicAdapter extends BootdexAdapter {
   };
 
   protected static override ready = (): void => {
-    // process any buffered battle `data` first before releasing the shitty 'ok' mutex lock
-    this.__mutex.battleBuf.forEach(([roomId, data]) => void this.battleReceiverNamed(roomId)?.(data));
+    // A battle can arrive while settings/locales are loading, before its receiver exists.
+    const bufferedRooms = new Set(this.__mutex.battleBuf.map(([roomId]) => roomId));
+    this.__mutex.battleBuf.forEach(([roomId, data]) => this.receiveBattle(roomId, data));
     this.__mutex.battleBuf.length = 0;
     this.__mutex.ok = true;
+
+    if (!detectClassicHost(window)) {
+      return;
+    }
+
+    // The embedded script can also load after the client has already joined a battle.
+    // Bootstrap from the client's public battle state without waiting for another turn.
+    Object.keys(window.app.rooms).forEach((roomId) => {
+      if (roomId.startsWith('battle-') && !bufferedRooms.has(roomId)) {
+        this.receiveBattle(roomId, `>${roomId}\n`);
+      }
+    });
   };
+
+  private static receiveBattle(roomId: string, data: string): void {
+    let receiver = this.battleReceiverNamed(roomId);
+
+    if (!receiver && typeof this.receiverFactory === 'function') {
+      receiver = this.receiverFactory(roomId);
+
+      if (typeof receiver === 'function') {
+        this.addBattleReceiver(roomId, receiver);
+      }
+    }
+
+    if (typeof receiver === 'function') {
+      receiver(data);
+    }
+  }
 
   public static get receivers() {
     return this.__battleReceivers;

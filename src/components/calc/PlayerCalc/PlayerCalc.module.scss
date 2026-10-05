@@ -1,6 +1,7 @@
 @use 'config/colors';
 @use 'functions/color';
 @use 'mixins/flex';
+@use 'mixins/font';
 @use 'mixins/position';
 @use 'mixins/spacing';
 @use 'mixins/transition';
@@ -63,4 +64,24 @@
 }
 .pokeCalc {
   @include spacing.padding($top: 4px);
+}
+
+.assumptions {
+  @include font.primary;
+  margin: 2px 0 4px;
+  font-size: 10px;
+  line-height: 1.5;
+
+  summary {
+    width: fit-content;
+    margin-left: auto;
+    cursor: pointer;
+    opacity: 0.65;
+  }
+
+  div {
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(128, 128, 128, 0.08);
+  }
 }

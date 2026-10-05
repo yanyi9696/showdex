@@ -73,7 +73,7 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
     const settings = rootState?.showdex?.settings?.calcdex;
 
     // if the openOnPanel setting is falsy, default to the 'showdown' behavior
-    const side = settings?.openOnPanel === 'right' || (
+    const side = env.bool('fantasy-embedded') || settings?.openOnPanel === 'right' || (
       (!settings?.openOnPanel || settings.openOnPanel === 'showdown')
         && !window.Dex?.prefs('rightpanelbattles')
     );
@@ -90,6 +90,11 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
       return calcdexRoom;
     }
 
+    if (env.bool('fantasy-embedded')) {
+      calcdexRoom.fantasyCalcdex = { battleId, visible: true };
+      window.app.updateLayout();
+    }
+
     calcdexRoom.reactRoot = ReactDOM.createRoot(calcdexRoom.el);
     calcdexRoom.requestLeave = () => {
       // check if there's a corresponding ClientBattleRoom for this Calcdex room
@@ -98,6 +103,9 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
 
       if (battle?.id) {
         delete battle.calcdexHtmlRoom;
+        if (env.bool('fantasy-embedded')) {
+          (window.app.rooms[battleId] as Showdown.ClientBattleRoom).updateControls();
+        }
       }
 
       // unmount the reactRoot we created earlier
@@ -109,7 +117,7 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
       // (i.e., do NOT use calcdexSettings here! it may contain a stale version of the settings)
       const freshSettings = rootState?.showdex?.settings?.calcdex;
 
-      if (freshSettings?.destroyOnClose) {
+      if (freshSettings?.destroyOnClose && !env.bool('fantasy-embedded')) {
         // clean up allocated memory from Redux for this Calcdex instance
         store.dispatch(calcdexSlice.actions.destroy(battleId));
 
@@ -237,6 +245,10 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
       return void this.endTimer('(bad calcdexRoomId)', this.battle.calcdexRoomId);
     }
 
+    if (env.bool('fantasy-embedded')) {
+      this.prepareFantasyPanelControls();
+    }
+
     const { Adapter, getCalcdexRoomId } = CalcdexClassicBootstrapper;
 
     // handle destroying the Calcdex when leaving the battleRoom
@@ -288,6 +300,40 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
     };
 
     this.endTimer('(panel prep ok)');
+  }
+
+  protected prepareFantasyPanelControls(): void {
+    const room = this.battleRoom;
+    const calculator = () => this.battle?.calcdexHtmlRoom;
+    const isVisible = () => !!calculator()?.fantasyCalcdex?.visible;
+    room.toggleCalcdexOverlay = () => {
+      if (!calculator()) {
+        this.open();
+      } else {
+        calculator().fantasyCalcdex.visible = !isVisible();
+        window.app.focusRoomRight(calculator().id);
+        window.app.updateLayout();
+      }
+      room.updateControls();
+    };
+
+    // Native controls are replaced for moves, switches, team preview and waits.
+    const methods = ['updateControls', 'updateControlsForPlayer', 'updateMoveControls',
+      'updateSwitchControls', 'updateTeamControls', 'updateWaitControls'] as const;
+    methods.forEach((name) => {
+      const native = room[name].bind(room);
+      (room[name] as (...args: unknown[]) => void) = (...args) => {
+        native(...args);
+        let button = room.$controls.find('button[name="toggleCalcdexOverlay"]');
+        if (!button.length) {
+          button = $('<button class="button" name="toggleCalcdexOverlay" type="button" style="float:right;margin-right:7px"></button>');
+          const heading = room.$controls.find('.whatdo, div.controls > p').first();
+          (heading.length ? heading : room.$controls).prepend(button);
+        }
+        button.html(`<i class="fa fa-${isVisible() ? 'close' : 'calculator'}"></i> ${isVisible() ? '关闭' : '打开'}计算器`);
+      };
+    });
+    room.updateControls();
   }
 
   protected prepareOverlay(): void {
@@ -621,9 +667,12 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
     const calcdexRoomId = CalcdexClassicBootstrapper.getCalcdexRoomId(this.battleId);
 
     if (calcdexRoomId in window.app.rooms) {
+      const calculator = window.app.rooms[calcdexRoomId] as Showdown.ClientHtmlRoom;
+      if (calculator.fantasyCalcdex) calculator.fantasyCalcdex.visible = true;
       // no need to call app.topbar.updateTabbar() since app.focusRoomRight() will call it for us
       // (app.focusRoomRight() -> app.updateLayout() -> app.topbar.updateTabbar())
       window.app.focusRoomRight(calcdexRoomId);
+      if (calculator.fantasyCalcdex) window.app.updateLayout();
     } else {
       // at this point, we need to recreate the room
       // (we should also be in the 'panel' renderMode now)
@@ -821,8 +870,10 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
     // battle.calcdexReactRoot for battle overlays (potentially could rename it to calcdexOverlayReactRoot... LOL)
     // let calcdexReactRoot: ReactDOM.Root;
 
-    this.battle.calcdexAsOverlay = this.calcdexSettings.openAs === 'overlay'
-      || (this.calcdexSettings.openAs !== 'showdown' && hasSinglePanel());
+    this.battle.calcdexAsOverlay = !env.bool('fantasy-embedded') && (
+      this.calcdexSettings.openAs === 'overlay'
+        || (this.calcdexSettings.openAs !== 'showdown' && hasSinglePanel())
+    );
 
     if (!this.battle.calcdexStateInit) {
       this.initCalcdexState();

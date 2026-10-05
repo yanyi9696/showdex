@@ -8,20 +8,15 @@ import * as React from 'react';
 export const useMobileViewport = (
   threshold = 576,
 ): boolean => {
-  const [mobile, setMobile] = React.useState(false);
-
-  const { clientWidth = 0 } = document?.documentElement || {};
-  const { innerWidth = 0 } = window || {};
+  const [mobile, setMobile] = React.useState(() => window.innerWidth <= threshold);
 
   React.useEffect(() => {
-    const vw = Math.max(clientWidth || 0, innerWidth || 0);
-
-    setMobile(vw <= threshold);
-  }, [
-    clientWidth,
-    innerWidth,
-    threshold,
-  ]);
+    const query = window.matchMedia(`(max-width: ${threshold}px)`);
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, [threshold]);
 
   return mobile;
 };

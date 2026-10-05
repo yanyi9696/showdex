@@ -209,7 +209,7 @@ export const PokeStats = ({
             )}
             tooltipDisabled={!settings?.showUiTooltips}
             primary
-            disabled={!pokemon?.speciesForme || missingIvs || missingEvs}
+            disabled={!pokemon?.speciesForme || (!env.bool('fantasy-embedded') && (missingIvs || missingEvs))}
             onPress={() => updatePokemon({
               showGenetics: !pokemon.showGenetics,
             }, `${l.scope}:ToggleButton~Genetics:onPress()`)}

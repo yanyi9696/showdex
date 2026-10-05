@@ -23,6 +23,9 @@
  */
 declare const __DEV__: NodeJS.Global['__DEV__'];
 
+/** Locale resources bundled into Fantasy's main script; null for extension builds. */
+declare const __SHOWDEX_EMBEDDED_LOCALES__: Record<string, Record<string, unknown>> | null;
+
 // Firefox-exclusive WebExtension content script globals
 declare const exportFunction: FirefoxBrowser.ExportFunction;
 declare const cloneInto: FirefoxBrowser.CloneInto;

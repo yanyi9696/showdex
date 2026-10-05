@@ -37,6 +37,7 @@ declare namespace Showdown {
 
     // Showdex-injected custom properties
     reactRoot?: import('react-dom/client').Root;
+    fantasyCalcdex?: { battleId: string; visible: boolean };
 
     public constructor(props?: {
       id: string;

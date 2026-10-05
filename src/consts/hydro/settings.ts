@@ -94,10 +94,10 @@ export const DefaultShowdexSettings: ShowdexSettings = {
 
     lockGeneticsVisibility: {
       auth: [],
-      p1: ['iv', 'ev'],
-      p2: ['iv', 'ev'],
-      p3: ['iv', 'ev'],
-      p4: ['iv', 'ev'],
+      p1: env.bool('fantasy-embedded') ? [] : ['iv', 'ev'],
+      p2: env.bool('fantasy-embedded') ? [] : ['iv', 'ev'],
+      p3: env.bool('fantasy-embedded') ? [] : ['iv', 'ev'],
+      p4: env.bool('fantasy-embedded') ? [] : ['iv', 'ev'],
     },
 
     allowIllegalSpreads: 'meta',

@@ -579,8 +579,8 @@ export const useCalcdexPresets = (
         if (!preset?.calcdexId) {
           if (env.bool('fantasy-embedded')) {
             // Unknown sets are editable assumptions. A teammate's newly received
-            // server preset must not reset manually entered opponent assumptions.
-            pokemon.showGenetics = true;
+            // server preset must not reset manually entered opponent assumptions
+            // or reopen stats the user has collapsed.
             pokemon.autoPreset = false;
             return;
           }

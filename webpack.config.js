@@ -1,4 +1,5 @@
 import path from 'path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'url';
 import { NIL as NIL_UUID, v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
@@ -265,6 +266,24 @@ for await (const filepath of i18nGlob) {
 
   dynamicResources.push(basename);
 }
+
+// file:// testclient pages cannot fetch local JSON. Embed the same locale sources
+// in Fantasy's main bundle so language loading cannot block battle initialization.
+const embeddedLocales = finalEnv.FANTASY_EMBEDDED === 'true' ? {} : null;
+
+if (embeddedLocales) {
+  for (const resource of dynamicResources) {
+    const locale = resource.split('.')[1];
+    embeddedLocales[locale] = {};
+
+    for await (const filepath of new Glob(`src/assets/i18n/${locale}/**/*.json`, { posix: true })) {
+      const namespace = path.basename(filepath, '.json');
+      embeddedLocales[locale][namespace] = JSON.parse(readFileSync(filepath, 'utf8'));
+    }
+  }
+}
+
+webpackEnv.__SHOWDEX_EMBEDDED_LOCALES__ = JSON.stringify(embeddedLocales);
 
 const copyPatterns = [
   // merge translation files into one big ass minified one for each language

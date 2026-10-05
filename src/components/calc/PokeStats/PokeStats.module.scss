@@ -47,6 +47,7 @@
 .header {
   @include font.primary(500);
   @include transition.apply(color);
+  white-space: nowrap;
 
   &.warning {
     color: colors.$orange;

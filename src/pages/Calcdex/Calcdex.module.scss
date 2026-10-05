@@ -111,6 +111,18 @@
   @include spacing.mt(12px);
 }
 
+.sourceNotice {
+  @include font.primary;
+  margin-top: 16px;
+  text-align: center;
+  font-size: 10px;
+  opacity: 0.65;
+
+  a {
+    color: inherit;
+  }
+}
+
 .overlayCloseButton {
   @include position.abs($t: 8px, $r: 8px);
   @include flex.row-center;

@@ -71,8 +71,12 @@ export const loadI18nextLocales = async (
     }
 
     const url = getResourceUrl(`i18n.${locale}${ext ? `.${ext}` : ''}`);
-    const response = await runtimeFetch<Record<string, unknown>>(url);
-    const data = response.json();
+    let data = __SHOWDEX_EMBEDDED_LOCALES__?.[locale];
+
+    if (!data) {
+      const response = await runtimeFetch<Record<string, unknown>>(url);
+      data = response.json();
+    }
 
     if (!nonEmptyObject(data.common?.['--meta'])) {
       l.debug(

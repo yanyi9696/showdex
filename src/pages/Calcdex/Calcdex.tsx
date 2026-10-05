@@ -28,6 +28,7 @@ import {
   useShowdexBundles,
 } from '@showdex/redux/store';
 import { findPlayerTitle } from '@showdex/utils/app';
+import { env, getResourceUrl } from '@showdex/utils/core';
 import { useMobileViewport, useRandomUuid } from '@showdex/utils/hooks';
 import styles from './Calcdex.module.scss';
 
@@ -55,7 +56,8 @@ export const Calcdex = ({
   const { t } = useTranslation('calcdex');
   const colorScheme = useColorScheme();
   const bundles = useShowdexBundles();
-  const mobile = useMobileViewport();
+  const embedded = env.bool('fantasy-embedded');
+  const mobile = useMobileViewport(embedded ? 1151 : 576);
 
   const { state, settings } = useCalcdexContext();
   const honkdexSettings = useHonkdexSettings();
@@ -123,7 +125,7 @@ export const Calcdex = ({
     t,
   ]);
 
-  const renderAsOverlay = React.useMemo(() => renderMode === 'overlay', [renderMode]);
+  const renderAsOverlay = renderMode === 'overlay' || (embedded && mobile);
 
   const topKey = React.useMemo(() => (
     !!authPlayerKey
@@ -229,6 +231,12 @@ export const Calcdex = ({
             onUserPopup={onUserPopup}
           />
         </PiconRackSortableContext>
+
+        {embedded && (
+          <div className={styles.sourceNotice}>
+            <a href={getResourceUrl('source.tar.gz')}>Showdex 源码 · AGPL-3.0</a>
+          </div>
+        )}
 
         {
           (renderAsOverlay && mobile) &&
