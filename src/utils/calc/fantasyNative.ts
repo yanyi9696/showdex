@@ -74,6 +74,7 @@ export const createFantasyInput = (state: CalcdexBattleState, moveName: MoveName
     pseudoWeather: [field.isGravity && 'gravity', field.isMagicRoom && 'magicroom', field.isWonderRoom && 'wonderroom'].filter(Boolean),
     attackerSide: side(field.attackerSide), defenderSide: side(field.defenderSide),
     critical: move.isCrit, hits: move.hits, useZ: attacker.useZ && !attacker.useMax, useMax: attacker.useMax,
+    mechanicBasePower: attacker.mechanicPowers?.[formatId(moveName)]?.power,
     // Send only manual overrides: native move callbacks must retain their dynamic power/type.
     moveOverrides: {
       basePower: attacker.moveOverrides?.[moveName]?.basePower,
@@ -149,8 +150,9 @@ export const formatFantasyDamage = (input: Input, reply?: NativeReply): CalcdexM
   const chance = r.damage.filter((n) => n >= r.hp).length / r.damage.length * 100;
   const koChance = uncertain ? '见计算条件' : `${chance.toFixed(chance % 1 ? 1 : 0)}% OHKO`;
   const note = ['幻想杯原生引擎；按面板假设；条件为招式命中，不计入场及回合末伤害', ...r.warnings].join('。');
+  const color = fantasyDamageColor((min + max) / 2 / r.hp, !uncertain && chance >= 100);
   return {
-    damageRange: range, koChance,
+    damageRange: range, koChance, damageColor: color, koColor: uncertain ? undefined : color,
     description: {
       raw: `${input.attacker.species} ${input.move} → ${input.defender.species}: ${min}-${max} (${range})。${note}`,
       attacker: `${input.attacker.species} / ${input.move}`,
@@ -158,4 +160,11 @@ export const formatFantasyDamage = (input: Input, reply?: NativeReply): CalcdexM
       damageRange: `${min}-${max} (${range})`, damageAmounts: r.damage.join(', '), koChance: `${koChance}。${note}`,
     },
   };
+};
+
+/** Red at four or more hits, green at a guaranteed OHKO, with a continuous transition. */
+export const fantasyDamageColor = (hpFraction: number, guaranteed = false): string => {
+  const progress = guaranteed ? 1 : Math.max(0, Math.min(1, (hpFraction - 0.25) / 0.75));
+  const from = [201, 66, 66], to = [35, 150, 82];
+  return `rgb(${from.map((v, i) => Math.round(v + (to[i] - v) * progress)).join(', ')})`;
 };

@@ -28,6 +28,51 @@ function loadSource(filename, dependencies, globals = {}) {
   return module.exports;
 }
 
+function nativeFantasy() {
+  return loadSource('src/utils/calc/fantasyNative.ts', {
+    '@showdex/utils/core': { env: { bool: () => true }, formatId: value => value.toLowerCase().replace(/[^a-z0-9]/g, '') },
+    './createSmogonPokemon': { createSmogonPokemon: (_, __, mon) => ({
+      ability: mon.ability, item: mon.item, boosts: {}, rawStats: {}, status: '', types: ['Normal'],
+      curHP: () => 100, maxHP: () => 100,
+    }) },
+    './createSmogonMove': { createSmogonMove: () => [{ isCrit: false, hits: 1 }] },
+    './createSmogonField': { createSmogonField: () => ({ attackerSide: {}, defenderSide: {} }) },
+  });
+}
+
+test('native calculator carries only the selected move dynamic power into its request', () => {
+  const { createFantasyInput } = nativeFantasy();
+  const attacker = { speciesForme: 'Scyther', mechanicPowers: { furycutter: { power: 160, label: '连斩' } },
+    privateTestValue: 'never serialize a store' };
+  const state = { format: 'gen9fantasy', gameType: 'Singles', playerKey: 'p1', opponentKey: 'p2', field: {},
+    p1: { pokemon: [attacker], selectionIndex: 0 }, p2: { pokemon: [{ speciesForme: 'Snorlax' }], selectionIndex: 0 } };
+  const input = createFantasyInput(state, 'Fury Cutter');
+  assert.equal(input.mechanicBasePower, 160);
+  assert.equal(input.moveOverrides.basePower, undefined, 'Do not turn a snapshot into a manual override');
+  assert(!JSON.stringify(input).includes(attacker.privateTestValue));
+  assert.equal(createFantasyInput(state, 'Quick Attack').mechanicBasePower, undefined);
+});
+
+test('native damage and KO colors communicate low damage, lethal damage and uncertain conditions', () => {
+  const { fantasyDamageColor, formatFantasyDamage } = nativeFantasy();
+  const red = fantasyDamageColor(0.25), green = fantasyDamageColor(1);
+  assert.equal(red, 'rgb(201, 66, 66)');
+  assert.equal(green, 'rgb(35, 150, 82)');
+  assert.equal(fantasyDamageColor(0), red);
+  assert.notEqual(fantasyDamageColor(0.6), red);
+  assert.notEqual(fantasyDamageColor(0.6), green);
+  const input = { attacker: { species: 'Scyther' }, defender: { species: 'Snorlax' }, move: 'Fury Cutter' };
+  const result = { damage: [100, 110], hp: 100, maxhp: 200, warnings: [], statusMove: false };
+  const lethal = formatFantasyDamage(input, {result});
+  assert.equal(lethal.koChance, '100% OHKO');
+  assert.equal(lethal.damageColor, green); assert.equal(lethal.koColor, green);
+  const weak = formatFantasyDamage(input, {result: {...result, damage: [10, 20]}});
+  assert.equal(weak.damageColor, red); assert.equal(weak.koColor, red);
+  const uncertain = formatFantasyDamage(input, {result: {...result, warnings: ['目标招式未知']}});
+  assert.equal(uncertain.koChance, '见计算条件'); assert.equal(uncertain.koColor, undefined);
+  assert.equal(formatFantasyDamage(input, {result: {...result, statusMove: true}}).damageColor, undefined);
+});
+
 function makeClient({ rooms = {}, named = false, settingsReady = Promise.resolve() } = {}) {
   const delivered = [];
   const state = { showdex: {} };

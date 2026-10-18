@@ -76,6 +76,7 @@ export interface CalcdexMatchupResult {
    * @since 0.1.2
    */
   damageRange?: string;
+  damageColor?: string;
 
   /**
    * In the format `XXX[.X]% nHKO`, where `X` and `n` are numbers.

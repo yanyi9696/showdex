@@ -29,6 +29,7 @@
 }
 
 .container {
+  font-size: 13px;
   // initially added this as a potential fix for the closing dropdown bug on mouse-up,
   // but turns out it was an issue with the .singleValue, which I just added pointer-events: none;,
   // which seemed to do the trick lol. leaving this here, but it does nothing I don't think.

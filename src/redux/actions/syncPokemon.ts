@@ -521,6 +521,8 @@ export const syncPokemon = (
 
   // fill in some additional fields if the serverPokemon was provided
   if (serverPokemon?.ident) {
+    syncedPokemon.mechanicPowers = (serverPokemon as Showdown.ServerPokemon &
+      Pick<CalcdexPokemon, 'mechanicPowers'>).mechanicPowers;
     syncedPokemon.source = 'server';
 
     // should always be the case, idk why it shouldn't be (but you know we gotta check)

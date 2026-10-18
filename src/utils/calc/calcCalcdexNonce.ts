@@ -50,6 +50,7 @@ const calcPokemonCalcdexNonce = (
   statusData: calcCalcdexId(pokemon?.statusData),
   statusStage: pokemon?.statusStage?.toString(),
   volatiles: calcCalcdexId(sanitizeVolatiles(pokemon)),
+  mechanicPowers: JSON.stringify((pokemon as CalcdexPokemon)?.mechanicPowers || {}),
   turnstatuses: calcCalcdexId(pokemon?.turnstatuses),
   sleepCounter: (!!pokemon?.speciesForme && 'sleepCounter' in pokemon && pokemon.sleepCounter?.toString())
     || (nonEmptyObject(pokemon?.statusData) && pokemon.statusData.sleepTurns?.toString())

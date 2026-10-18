@@ -576,6 +576,7 @@ export const PokeMoves = ({
           move: calcMove,
           description,
           damageRange,
+          damageColor,
           koChance,
           koColor,
         } = { ...matchups[i] };
@@ -1115,6 +1116,7 @@ export const PokeMoves = ({
                         )}
                         tabIndex={-1} // not ADA compliant, obviously lol
                         label={parsedDamageRange}
+                        labelStyle={damageColor ? { color: damageColor, fontWeight: 700 } : undefined}
                         tooltip={matchupTooltip}
                         tooltipTrigger="mouseenter"
                         tooltipTouch={['hold', 500]}
@@ -1149,6 +1151,7 @@ export const PokeMoves = ({
                             styles.noCopy,
                             (!hasDamageRange || !!description?.failureKey) && styles.noDamage,
                           )}
+                          style={damageColor ? { color: damageColor, fontWeight: 700 } : undefined}
                         >
                           {(
                             (!!description?.failureKey && t('poke.moves.failure', 'FAILURE'))
@@ -1166,6 +1169,7 @@ export const PokeMoves = ({
                   style={{
                     ...(!koChance ? { opacity: 0.3 } : null),
                     ...(koColor ? { color: koColor } : null),
+                    ...(damageColor ? { fontWeight: 700 } : null),
                   }}
                 >
                   {/* XXX% XHKO */}

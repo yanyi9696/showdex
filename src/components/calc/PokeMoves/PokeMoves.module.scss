@@ -8,6 +8,7 @@
 @use 'mixins/transition';
 
 .container {
+  font-size: 13px;
   grid-template-columns: minmax(150px, 1.5fr) minmax(0, 1.25fr) minmax(0, 1fr);
   column-gap: 10px;
   row-gap: 3px;
@@ -247,6 +248,7 @@ button.damageButton {
 }
 
 .damageButtonLabel {
+  font-size: 13px;
   .light & {
     color: colors.$black;
   }
