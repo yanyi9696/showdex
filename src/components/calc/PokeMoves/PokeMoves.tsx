@@ -1116,7 +1116,7 @@ export const PokeMoves = ({
                         )}
                         tabIndex={-1} // not ADA compliant, obviously lol
                         label={parsedDamageRange}
-                        labelStyle={damageColor ? { color: damageColor, fontWeight: 700 } : undefined}
+                        labelStyle={damageColor ? { color: damageColor } : undefined}
                         tooltip={matchupTooltip}
                         tooltipTrigger="mouseenter"
                         tooltipTouch={['hold', 500]}
@@ -1151,7 +1151,7 @@ export const PokeMoves = ({
                             styles.noCopy,
                             (!hasDamageRange || !!description?.failureKey) && styles.noDamage,
                           )}
-                          style={damageColor ? { color: damageColor, fontWeight: 700 } : undefined}
+                          style={damageColor ? { color: damageColor } : undefined}
                         >
                           {(
                             (!!description?.failureKey && t('poke.moves.failure', 'FAILURE'))
@@ -1166,10 +1166,10 @@ export const PokeMoves = ({
                 </TableGridItem>
 
                 <TableGridItem
+                  className={styles.koLabel}
                   style={{
                     ...(!koChance ? { opacity: 0.3 } : null),
                     ...(koColor ? { color: koColor } : null),
-                    ...(damageColor ? { fontWeight: 700 } : null),
                   }}
                 >
                   {/* XXX% XHKO */}

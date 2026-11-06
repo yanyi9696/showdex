@@ -247,6 +247,14 @@ button.damageButton {
   }
 }
 
+.damageButtonLabel,
+.koLabel {
+  @include font.apply(fonts.$mono);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .damageButtonLabel {
   font-size: 13px;
   .light & {

@@ -14,7 +14,7 @@ import { type CalcdexPlayerKey } from '@showdex/interfaces/calc';
 import { useUserLadderQuery } from '@showdex/redux/services';
 import { useColorScheme } from '@showdex/redux/store';
 import { usePlayerTitle } from '@showdex/utils/app';
-import { formatId } from '@showdex/utils/core';
+import { env, formatId } from '@showdex/utils/core';
 import { logger } from '@showdex/utils/debug';
 import { capitalize } from '@showdex/utils/humanize';
 import { useCalcdexContext } from '../CalcdexContext';
@@ -80,6 +80,9 @@ export const PlayerInfo = ({
   const delayedQueryTimeout = React.useRef<NodeJS.Timeout>(null);
 
   const skipLadderQuery = !settings?.showPlayerRatings
+    // Fantasy's embedded client gets ratings from the battle protocol. Its
+    // server does not provide the central Showdown PHP ladder API.
+    || env.bool('fantasy-embedded')
     || !playerId
     || !format
     || !!ratingFromBattle;

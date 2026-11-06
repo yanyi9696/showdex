@@ -53,24 +53,58 @@ test('native calculator carries only the selected move dynamic power into its re
   assert.equal(createFantasyInput(state, 'Quick Attack').mechanicBasePower, undefined);
 });
 
-test('native damage and KO colors communicate low damage, lethal damage and uncertain conditions', () => {
-  const { fantasyDamageColor, formatFantasyDamage } = nativeFantasy();
-  const red = fantasyDamageColor(0.25), green = fantasyDamageColor(1);
-  assert.equal(red, 'rgb(201, 66, 66)');
-  assert.equal(green, 'rgb(35, 150, 82)');
-  assert.equal(fantasyDamageColor(0), red);
-  assert.notEqual(fantasyDamageColor(0.6), red);
-  assert.notEqual(fantasyDamageColor(0.6), green);
+test('native results use standard damage text, NHKO labels and KO-only colors', () => {
+  const { formatFantasyDamage } = nativeFantasy();
   const input = { attacker: { species: 'Scyther' }, defender: { species: 'Snorlax' }, move: 'Fury Cutter' };
   const result = { damage: [100, 110], hp: 100, maxhp: 200, warnings: [], statusMove: false };
   const lethal = formatFantasyDamage(input, {result});
-  assert.equal(lethal.koChance, '100% OHKO');
-  assert.equal(lethal.damageColor, green); assert.equal(lethal.koColor, green);
-  const weak = formatFantasyDamage(input, {result: {...result, damage: [10, 20]}});
-  assert.equal(weak.damageColor, red); assert.equal(weak.koColor, red);
+  assert.equal(lethal.koChance, '1HKO');
+  assert.equal(lethal.damageRange, '50.0 - 55.0%');
+  assert.equal(lethal.damageColor, undefined); assert.equal(lethal.koColor, '#4CAF50');
+  const weak = formatFantasyDamage(input, {result: {...result, damage: [20, 21]}});
+  assert.equal(weak.koChance, '5HKO');
+  assert.equal(weak.damageColor, undefined); assert.equal(weak.koColor, '#F44336');
   const uncertain = formatFantasyDamage(input, {result: {...result, warnings: ['目标招式未知']}});
   assert.equal(uncertain.koChance, '见计算条件'); assert.equal(uncertain.koColor, undefined);
-  assert.equal(formatFantasyDamage(input, {result: {...result, statusMove: true}}).damageColor, undefined);
+  assert.equal(formatFantasyDamage(input, {result: {...result, statusMove: true}}).damageRange, 'N/A');
+  const immune = formatFantasyDamage(input, {result: {...result, damage: [0, 0]}});
+  assert.equal(immune.damageRange, '0.0 - 0.0%'); assert.equal(immune.koChance, undefined);
+  const multi = formatFantasyDamage(input, {result: {...result,
+    warnings: ['多段攻击显示所选命中次数的伤害边界，不提供击倒概率']}});
+  assert.equal(multi.koChance, '见计算条件');
+  assert.match(lethal.description.koChance, /假定每次命中条件不变/);
+});
+
+test('native NHKO combines independent rolls and preserves repeated damage roll weights', () => {
+  const { fantasyKoEstimate } = nativeFantasy();
+  assert.equal(fantasyKoEstimate([40, 50, 60], 100).label, '66.7% 2HKO');
+  assert.equal(fantasyKoEstimate([40, 40, 60, 60], 100).label, '75% 2HKO');
+  // 23 of the 27 equally likely three-hit combinations reach 100 HP.
+  assert.equal(fantasyKoEstimate([30, 35, 40], 100).label, '85.2% 3HKO');
+  assert.equal(fantasyKoEstimate([40, 50, 60], 50).label, '66.7% 1HKO');
+  assert.equal(fantasyKoEstimate([20, 21], 100).label, '5HKO');
+  assert.equal(fantasyKoEstimate([0, 0], 100), null);
+  assert.equal(fantasyKoEstimate([], 100), null);
+  assert.equal(fantasyKoEstimate([1], 0), null);
+  assert.equal(fantasyKoEstimate([NaN], 100), null);
+  assert.equal(fantasyKoEstimate([1, 2], 100).label, '>9HKO');
+});
+
+test('native NHKO matches exhaustive enumeration for small distributions', () => {
+  const { fantasyKoEstimate } = nativeFantasy();
+  for (const damage of [[40, 50, 60], [11, 13, 16], [0, 0, 25]]) {
+    for (const hp of [30, 55, 80, 100]) {
+      const hits = Math.ceil(hp / Math.max(...damage));
+      if (hits > 9) continue;
+      let totals = [0];
+      for (let i = 0; i < hits; i++) totals = totals.flatMap(total => damage.map(n => total + n));
+      const count = totals.filter(n => n >= hp).length;
+      const percent = count / totals.length * 100;
+      const expected = count === totals.length ? `${hits}HKO` :
+        `${percent < 0.1 ? '<0.1' : Math.min(99.9, Math.round(percent * 10) / 10)}% ${hits}HKO`;
+      assert.equal(fantasyKoEstimate(damage, hp).label, expected);
+    }
+  }
 });
 
 function makeClient({ rooms = {}, named = false, settingsReady = Promise.resolve() } = {}) {

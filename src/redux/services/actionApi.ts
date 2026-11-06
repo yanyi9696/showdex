@@ -186,39 +186,59 @@ export const actionApi = showdownApi.injectEndpoints({
   endpoints: (build) => ({
     userLadder: build.query<ShowdownActionUserLadderInfo[], string>({
       queryFn: async (username) => {
+        // The embedded build uses this server's battle-provided ratings, not
+        // the unrelated central PHP ladder API (including for local guests/NPCs).
+        if (env.bool('fantasy-embedded')) {
+          return { data: [] };
+        }
+
         if (!username) {
-          throw new Error('No valid username was provided.');
+          return { error: { status: 'CUSTOM_ERROR', error: 'No valid username was provided.' } };
         }
 
-        const response = await runtimeFetch([
-          env('showdown-client-base-url'), // e.g., 'https://play.pokemonshowdown.com'
-          env('showdown-client-action-path'), // e.g., '/~~showdown/action.php'
-          '?',
-          qs.stringify({
-            act: 'ladderget',
-            user: username,
-          }),
-        ].join(''), {
-          method: HttpMethod.GET,
-          headers: {
-            Accept: 'text/plain',
-          },
-        });
+        try {
+          const response = await runtimeFetch([
+            env('showdown-client-base-url'), // e.g., 'https://play.pokemonshowdown.com'
+            env('showdown-client-action-path'), // e.g., '/~~showdown/action.php'
+            '?',
+            qs.stringify({
+              act: 'ladderget',
+              user: username,
+            }),
+          ].join(''), {
+            method: HttpMethod.GET,
+            headers: {
+              Accept: 'text/plain',
+            },
+          });
 
-        // this API has malformed JSON lul
-        let text = response.text();
+          if (!response.ok) {
+            return { error: { status: response.status, data: response.text() } };
+          }
 
-        if (text?.startsWith?.(']')) {
-          text = text.slice(1);
+          // this API has malformed JSON lul
+          let text = response.text();
+
+          if (text?.startsWith?.(']')) {
+            text = text.slice(1);
+          }
+
+          // format as JSON
+          const parsed = safeJsonParse<ShowdownActionUserLadderInfo[]>(text);
+
+          if (!Array.isArray(parsed)) {
+            return { error: { status: 'CUSTOM_ERROR', error: 'Invalid ladder response.' } };
+          }
+
+          const data = parsed.map((info) => ({
+            ...info,
+            id: `${info?.entryid || '?'}:${info?.formatid || '?'}:${info?.entryid || '?'}`,
+          }));
+
+          return { data };
+        } catch (error) {
+          return { error: { status: 'FETCH_ERROR', error: String(error) } };
         }
-
-        // format as JSON
-        const data = safeJsonParse<ShowdownActionUserLadderInfo[]>(text)?.map((info) => ({
-          ...info,
-          id: `${info?.entryid || '?'}:${info?.formatid || '?'}:${info?.entryid || '?'}`,
-        }));
-
-        return { data };
       },
 
       providesTags: createTagProvider(ShowdownReduxTagType.Ladder),

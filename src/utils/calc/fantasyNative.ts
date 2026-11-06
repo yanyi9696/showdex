@@ -136,35 +136,59 @@ export const requestFantasyDamage = (input: Input): Promise<NativeReply> => {
   return promise;
 };
 
+/** Repeated uses of the current single-move distribution; no residual healing or state changes. */
+export const fantasyKoEstimate = (damage: number[], hp: number): { label: string; hits: number } | null => {
+  if (!(hp > 0) || !damage.length || damage.some((n) => !Number.isSafeInteger(n) || n < 0)) return null;
+  const min = Math.min(...damage);
+  const max = Math.max(...damage);
+  if (!max) return null;
+  const hits = Math.ceil(hp / max);
+  if (hits > 9) return { label: '>9HKO', hits };
+  if (min * hits >= hp) return { label: `${hits}HKO`, hits };
+  const rolls = new Map<number, number>();
+  damage.forEach((n) => rolls.set(n, (rolls.get(n) || 0) + 1 / damage.length));
+  let distribution = new Map([[0, 1]]);
+  for (let i = 0; i < hits; i++) {
+    const next = new Map<number, number>();
+    for (const [total, probability] of distribution) {
+      for (const [amount, weight] of rolls) {
+        const sum = Math.min(hp, total + amount);
+        if (sum + max * (hits - i - 1) < hp) continue;
+        next.set(sum, (next.get(sum) || 0) + probability * weight);
+        // Bound work for unusually large custom stat spreads; never invent an exact chance.
+        if (next.size > 4096) return { label: `可能 ${hits}HKO`, hits };
+      }
+    }
+    distribution = next;
+  }
+  const chance = (distribution.get(hp) || 0) * 100;
+  const percent = chance < 0.1 ? '<0.1' : Math.min(99.9, Math.round(chance * 10) / 10);
+  return { label: `${percent}% ${hits}HKO`, hits };
+};
+
 export const formatFantasyDamage = (input: Input, reply?: NativeReply): CalcdexMatchupResult => {
   if (!reply?.result) return {
     damageRange: reply?.error ? '不可用' : '计算中…',
     description: { raw: reply?.error || '正在使用幻想杯原生引擎计算', damageRange: reply?.error },
   };
   const r = reply.result;
-  if (r.statusMove) return { damageRange: '变化招式' };
+  if (r.statusMove) return { damageRange: 'N/A' };
   const min = Math.min(...r.damage);
   const max = Math.max(...r.damage);
-  const range = `${(100 * min / r.maxhp).toFixed(1)}% - ${(100 * max / r.maxhp).toFixed(1)}%`;
+  const range = `${(100 * min / r.maxhp).toFixed(1)} - ${(100 * max / r.maxhp).toFixed(1)}%`;
   const uncertain = r.warnings.length > 0;
-  const chance = r.damage.filter((n) => n >= r.hp).length / r.damage.length * 100;
-  const koChance = uncertain ? '见计算条件' : `${chance.toFixed(chance % 1 ? 1 : 0)}% OHKO`;
-  const note = ['幻想杯原生引擎；按面板假设；条件为招式命中，不计入场及回合末伤害', ...r.warnings].join('。');
-  const color = fantasyDamageColor((min + max) / 2 / r.hp, !uncertain && chance >= 100);
+  const ko = uncertain ? null : fantasyKoEstimate(r.damage, r.hp);
+  const koChance = uncertain ? '见计算条件' : ko?.label;
+  const note = ['幻想杯原生引擎；按面板假设；击倒次数按当前生命值和本次伤害分布估算，假定每次命中条件不变，' +
+    '不计入场伤害、回合末伤害、回血或后续能力变化', ...r.warnings].join('。');
+  const koColor = !ko ? undefined : ko.hits === 1 ? '#4CAF50' : ko.hits < 4 ? '#FF9800' : '#F44336';
   return {
-    damageRange: range, koChance, damageColor: color, koColor: uncertain ? undefined : color,
+    damageRange: range, koChance, koColor,
     description: {
       raw: `${input.attacker.species} ${input.move} → ${input.defender.species}: ${min}-${max} (${range})。${note}`,
       attacker: `${input.attacker.species} / ${input.move}`,
       defender: input.defender.species,
-      damageRange: `${min}-${max} (${range})`, damageAmounts: r.damage.join(', '), koChance: `${koChance}。${note}`,
+      damageRange: `${min}-${max} (${range})`, damageAmounts: r.damage.join(', '), koChance: `${koChance || '无法击倒'}。${note}`,
     },
   };
-};
-
-/** Red at four or more hits, green at a guaranteed OHKO, with a continuous transition. */
-export const fantasyDamageColor = (hpFraction: number, guaranteed = false): string => {
-  const progress = guaranteed ? 1 : Math.max(0, Math.min(1, (hpFraction - 0.25) / 0.75));
-  const from = [201, 66, 66], to = [35, 150, 82];
-  return `rgb(${from.map((v, i) => Math.round(v + (to[i] - v) * progress)).join(', ')})`;
 };
