@@ -99,9 +99,10 @@ export abstract class BootdexAdapter {
     l.debug('beep boop bootdex is now booting the big booty');
 
     try {
-      void this.hook?.();
+      await this.hook?.();
     } catch (error) {
       l.error('Couldn\'t hook() in run() cuz of', error);
+      throw error;
     }
 
     try {
@@ -109,6 +110,7 @@ export abstract class BootdexAdapter {
       await this.ready?.();
     } catch (error) {
       l.error('Couldn\'t run() cuz of', error);
+      throw error;
     }
 
     l.debug('beep boop job done');

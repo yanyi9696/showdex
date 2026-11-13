@@ -17,6 +17,7 @@ import { detectSpeciesForme } from './detectSpeciesForme';
 import { detectToggledAbility } from './detectToggledAbility';
 import { sanitizeMoveTrack } from './sanitizeMoveTrack';
 import { sanitizeVolatiles } from './sanitizeVolatiles';
+import { readRogueBaseStats } from './readRogueBaseStats';
 
 /**
  * Essentially converts a `Showdown.Pokemon` into our custom `CalcdexPokemon`.
@@ -242,7 +243,8 @@ export const sanitizePokemon = <
   const species = dex.species.get(sanitizedPokemon.speciesForme);
 
   // don't really care if species is falsy here
-  sanitizedPokemon.baseStats = { ...species?.baseStats };
+  const rogueBases = readRogueBaseStats(format, sanitizedPokemon);
+  sanitizedPokemon.baseStats = { ...(!transformed && rogueBases ? rogueBases : species?.baseStats) };
   sanitizedPokemon.dmaxable = !species?.cannotDynamax;
 
   // grab the base species forme to obtain its other formes
@@ -347,7 +349,10 @@ export const sanitizePokemon = <
   }
 
   if (nonEmptyObject(transformedSpecies?.baseStats)) {
-    sanitizedPokemon.transformedBaseStats = { ...transformedSpecies.baseStats };
+    sanitizedPokemon.transformedBaseStats = { ...(rogueBases || transformedSpecies.baseStats) };
+
+    // The public strip includes the transform user's own effective HP base.
+    if (rogueBases) sanitizedPokemon.baseStats.hp = rogueBases.hp;
 
     // Transform ability doesn't copy the base HP stat
     // (uses the original Pokemon's base HP stat)

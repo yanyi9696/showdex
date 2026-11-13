@@ -148,4 +148,8 @@ void (async () => {
   }
 
   l.success(window.__SHOWDEX_INIT, 'for', window.__SHOWDEX_HOST, 'initialized!');
-})();
+  if (env.bool('fantasy-embedded')) window.dispatchEvent(new Event('fantasyshowdexready'));
+})().catch((error: unknown) => {
+  if (env.bool('fantasy-embedded')) window.dispatchEvent(new Event('fantasyshowdexerror'));
+  console.error('[Showdex] Initialization failed', error);
+});

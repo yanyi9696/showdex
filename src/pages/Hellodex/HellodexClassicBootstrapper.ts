@@ -67,6 +67,7 @@ export class HellodexClassicBootstrapper extends BootdexClassicBootstrappable {
     }
 
     hellodexRoom.reactRoot = ReactDOM.createRoot(hellodexRoom.el);
+    delete hellodexRoom.el.dataset.fantasyShowdexPlaceholder;
 
     // override the requestLeave() handler to unmount the reactRoot
     hellodexRoom.requestLeave = () => {
@@ -124,7 +125,8 @@ export class HellodexClassicBootstrapper extends BootdexClassicBootstrappable {
 
     const hellodexRoomId = HellodexClassicBootstrapper.getHellodexRoomId();
 
-    if (hellodexRoomId in window.app.rooms) {
+    if (hellodexRoomId in window.app.rooms
+      && window.app.rooms[hellodexRoomId]?.el?.dataset?.fantasyShowdexPlaceholder !== 'true') {
       return void window.app.focusRoomRight(hellodexRoomId);
     }
 

@@ -12,7 +12,7 @@ import {
   type Terrain,
   type Weather,
 } from '@smogon/calc';
-import { PokemonBoostNames, PokemonTypes } from '@showdex/consts/dex';
+import { PokemonBoostNames, PokemonStatNames, PokemonTypes } from '@showdex/consts/dex';
 import { type CalcdexPokemon } from '@showdex/interfaces/calc';
 import {
   clonePokemon,
@@ -37,6 +37,7 @@ import {
   hasMegaForme,
 } from '@showdex/utils/dex';
 import { capitalize } from '@showdex/utils/humanize';
+import { isRogueCalcFormat } from '@showdex/utils/battle/readRogueBaseStats';
 
 // const l = logger('@showdex/redux/actions/syncPokemon()');
 
@@ -564,7 +565,9 @@ export const syncPokemon = (
     }
 
     // copy the server stats for more accurate final stats calculations
-    if (!nonEmptyObject(syncedPokemon.serverStats) && nonEmptyObject(serverPokemon.stats)) {
+    if (nonEmptyObject(serverPokemon.stats) && (
+      !nonEmptyObject(syncedPokemon.serverStats) || isRogueCalcFormat(format)
+    )) {
       syncedPokemon.serverStats = {
         ...serverPokemon.stats,
         hp: serverPokemon.maxhp,
@@ -621,7 +624,12 @@ export const syncPokemon = (
     baseStats,
     transformedBaseStats,
     ...resanitizedPokemon
-  } = sanitizePokemon(syncedPokemon, format);
+  } = sanitizePokemon(clientIllusion ? {
+    ...syncedPokemon,
+    // The client object belongs to the disguise, not the known real Pokemon.
+    volatiles: Object.fromEntries(Object.entries(syncedPokemon.volatiles)
+      .filter(([key]) => !['roguebasestats', 'fantasystats'].includes(key))),
+  } : syncedPokemon, format);
 
   ({
     cosmeticForme: syncedPokemon.cosmeticForme,
@@ -674,6 +682,23 @@ export const syncPokemon = (
       && nonEmptyObject(transformedBaseStats)
       && { ...transformedBaseStats }
   ) || null;
+
+  // A same-model universal evolution can change both bases and private stats.
+  // Refresh an inferred "Yours" preset once; keep explicit user presets/overrides.
+  const rogueStatsChanged = isRogueCalcFormat(format) && serverPokemon?.ident && PokemonStatNames.some((stat) => (
+    pokemon.serverStats?.[stat] !== syncedPokemon.serverStats?.[stat]
+      || pokemon.baseStats?.[stat] !== syncedPokemon.baseStats?.[stat]
+  ));
+
+  if (rogueStatsChanged) {
+    syncedPokemon.presets = syncedPokemon.presets.filter((preset) => preset.source !== 'server');
+
+    if (syncedPokemon.presetSource === 'server') {
+      syncedPokemon.presetId = null;
+      syncedPokemon.presetSource = null;
+      syncedPokemon.autoPresetId = null;
+    }
+  }
 
   // clear the list of transformed moves if the Pokemon is no longer transformed
   // (this one applies to both client [i.e., non-server-sourced] & [redundantly] server-sourced syncedPokemon)
