@@ -75,6 +75,18 @@ test('native results use standard damage text, NHKO labels and KO-only colors', 
   assert.match(lethal.description.koChance, /假定每次命中条件不变/);
 });
 
+test('native calculator sends only the selected move Stalwart stack, not a guessed or pre-multiplied power', () => {
+  const { createFantasyInput } = nativeFantasy();
+  const attacker = { speciesForme: 'Mew', ability: 'Stalwart',
+    mechanicPowers: { watergun: { power: 40, source: '', stalwart: 3 } } };
+  const state = { format: 'gen9fantasy', gameType: 'Singles', playerKey: 'p1', opponentKey: 'p2', field: {},
+    p1: { pokemon: [attacker], selectionIndex: 0 }, p2: { pokemon: [{ speciesForme: 'Snorlax' }], selectionIndex: 0 } };
+  const input = createFantasyInput(state, 'Water Gun');
+  assert.equal(input.stalwartBoost, 3);
+  assert.equal(input.mechanicBasePower, 40);
+  assert.equal(createFantasyInput(state, 'Tackle').stalwartBoost, undefined);
+});
+
 test('native NHKO combines independent rolls and preserves repeated damage roll weights', () => {
   const { fantasyKoEstimate } = nativeFantasy();
   assert.equal(fantasyKoEstimate([40, 50, 60], 100).label, '66.7% 2HKO');

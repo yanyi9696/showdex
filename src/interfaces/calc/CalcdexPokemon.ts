@@ -23,7 +23,7 @@ export type CalcdexPokemonSource =
   | 'user';
 
 export interface CalcdexPokemon extends CalcdexLeanPokemon {
-  mechanicPowers?: Record<string, { power: number; source: string }>;
+  mechanicPowers?: Record<string, { power: number; source: string; stalwart?: number }>;
   /**
    * Internal unqiue ID used by the extension.
    *

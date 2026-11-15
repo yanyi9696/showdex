@@ -75,6 +75,7 @@ export const createFantasyInput = (state: CalcdexBattleState, moveName: MoveName
     attackerSide: side(field.attackerSide), defenderSide: side(field.defenderSide),
     critical: move.isCrit, hits: move.hits, useZ: attacker.useZ && !attacker.useMax, useMax: attacker.useMax,
     mechanicBasePower: attacker.mechanicPowers?.[formatId(moveName)]?.power,
+    stalwartBoost: attacker.mechanicPowers?.[formatId(moveName)]?.stalwart,
     // Send only manual overrides: native move callbacks must retain their dynamic power/type.
     moveOverrides: {
       basePower: attacker.moveOverrides?.[moveName]?.basePower,
