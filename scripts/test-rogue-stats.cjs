@@ -9,7 +9,8 @@ const table = values => Object.fromEntries(['hp', 'atk', 'def', 'spa', 'spd', 's
 const normalize = value => JSON.parse(JSON.stringify(value));
 const raw = {Golduck: table([80,82,78,95,80,85]), Smeargle: table([55,20,35,20,45,75]),
   Ditto: table([48,48,48,48,48,48]), Zoroark: table([60,105,60,120,60,105])};
-const species = name => ({name, baseSpecies:name, baseStats:raw[name], types:['Normal'], abilities:{0:'Damp'}, exists:true});
+const species = name => ({name, baseSpecies:name, baseStats:raw[name],
+  types:[name === 'Golduck' ? 'Water' : name === 'Zoroark' ? 'Dark' : 'Normal'], abilities:{0:'Damp'}, exists:true});
 const dex = {species:{get:species}, abilities:{get:name=>({name,exists:true})},
   items:{get:name=>({name,exists:true})}, moves:{get:name=>({name,exists:true})}};
 const core = {formatId:id, nonEmptyObject:value=>!!value && !!Object.keys(value).length,
@@ -32,7 +33,8 @@ function load(file) {
   return module.exports;
 }
 const statsConsts = load('src/consts/dex/stats.ts'), natures = load('src/consts/dex/natures.ts');
-overrides['@showdex/consts/dex']={...statsConsts,...natures,PokemonTypes:['Normal','Water','Psychic']};
+overrides['@showdex/consts/dex']={...statsConsts,...natures,
+  PokemonTypes:['Normal','Water','Psychic','Electric','Fire','Fairy','Stellar','Dark']};
 overrides['@showdex/utils/core']=core; overrides['@showdex/utils/dex']=dexUtils;
 overrides['@showdex/utils/battle/readRogueBaseStats']=load('src/utils/battle/readRogueBaseStats.ts');
 overrides['@showdex/utils/presets']={flattenAlts:values=>values};
@@ -108,9 +110,75 @@ test('Transform uses the published current bases but retains its own HP and rest
   assert.equal(reset.transformedBaseStats,null);assert.deepEqual(normalize(reset.baseStats),raw.Ditto);
 });
 test('an own Illusion mismatch never copies the disguise public bases into the real species',()=>{
-  const p=mon('Zoroark');p.calcdexId='real';
+  const p=mon('Zoroark');p.calcdexId='real';p.teraType='Dark';
   const next=syncPokemon(p,{format,clientPokemon:{calcdexId:'disguise',speciesForme:'Golduck',
-    volatiles:publicStats('80/112/108/135/100/105')},serverPokemon:{...request({atk:125,def:80,spa:140,spd:80,spe:125}),
+    teraType:'Fairy',volatiles:publicStats('80/112/108/135/100/105')},serverPokemon:{...request({atk:125,def:80,spa:140,spd:80,spe:125}),
       calcdexId:'real',speciesForme:'Zoroark',ability:'illusion'}});
   assert.equal(next.speciesForme,'Zoroark');assert.deepEqual(normalize(next.baseStats),raw.Zoroark);
+  assert.equal(next.teraType,'Dark');
+});
+
+test('FC Doubles private Tera types replace guesses on each new battle and after reconnect',()=>{
+  const fcFormat = 'gen9fcchampionsdoublesgi';
+  for (let battle = 1; battle <= 3; battle++) {
+    for (const teraType of ['Normal','Water','Psychic','Electric','Fairy','Stellar']) {
+      let p = sanitizePokemon({speciesForme:'Golduck',ident:'p1: Golduck',level:50},fcFormat);
+      p.dirtyTeraType = 'Normal'; // A stale calculator assumption must not override a private request.
+      const serverPokemon = {...request({atk:102,def:98,spa:115,spd:100,spe:105}),teraType};
+      const snapshot = JSON.stringify(serverPokemon);
+      for (let reconnect = 0; reconnect < 3; reconnect++) {
+        p = syncPokemon(p,{format:fcFormat,clientPokemon:{volatiles:{}},serverPokemon});
+        assert.equal(p.teraType,teraType);
+        assert.equal(p.dirtyTeraType,null);
+        p = sanitizePokemon(p,fcFormat);
+        assert.equal(p.teraType,teraType);
+      }
+      assert.equal(JSON.stringify(serverPokemon),snapshot,'Calculator must not write back to the battle request');
+    }
+  }
+});
+
+test('FC Doubles revealed Tera types survive public-only switch and reconnect updates',()=>{
+  const fcFormat = 'gen9fcchampionsdoublesgi';
+  let p = sanitizePokemon({speciesForme:'Golduck',ident:'p2: Golduck',level:50},fcFormat);
+  assert.equal(p.teraType,null,'Opponent Tera remains unknown before being revealed');
+  p = syncPokemon(p,{format:fcFormat,clientPokemon:{terastallized:'Fairy',volatiles:{}}});
+  assert.equal(p.teraType,'Fairy');
+  assert.equal(p.dirtyTeraType,null);
+  p = syncPokemon(p,{format:fcFormat,clientPokemon:{terastallized:'',volatiles:{}}});
+  assert.equal(p.teraType,'Fairy');
+  assert.equal(p.dirtyTeraType,null);
+  const nextBattle = sanitizePokemon({speciesForme:'Golduck',ident:'p2: Golduck',level:50},fcFormat);
+  assert.equal(nextBattle.teraType,null,'A new battle must not borrow the previous battle Tera type');
+});
+
+test('late client Tera information replaces a Normal guess before Terastallization',()=>{
+  const fcFormat = 'gen9fcchampionsdoublesgi';
+  for (const teraType of ['Fire','Water','Fairy','Stellar','Normal']) {
+    let p = sanitizePokemon({speciesForme:'Smeargle',ident:'p2: Smeargle',level:50},fcFormat);
+    assert.equal(p.dirtyTeraType,'Normal');
+    const clientPokemon = {teraType,terastallized:'',volatiles:{}};
+    const snapshot = JSON.stringify(clientPokemon);
+    p = syncPokemon(p,{format:fcFormat,clientPokemon});
+    assert.equal(p.dirtyTeraType || p.teraType,teraType,'Displayed Tera must use the newly revealed type');
+    assert.equal(p.teraType,teraType);
+    assert.equal(p.dirtyTeraType,null);
+    assert.equal(p.terastallized,false,'Learning the Tera type is not activating Terastallization');
+    for (const unknown of ['', '???', null, 'invalid']) {
+      p = syncPokemon(p,{format:fcFormat,clientPokemon:{teraType:unknown,terastallized:'',volatiles:{}}});
+      assert.equal(p.teraType,teraType,'Missing reconnect data must not erase the revealed type');
+    }
+    assert.equal(JSON.stringify(clientPokemon),snapshot);
+  }
+});
+
+test('private request and actual Terastallization take precedence over stale client Tera information',()=>{
+  const fcFormat = 'gen9fcchampionsdoublesgi';
+  const p = sanitizePokemon({speciesForme:'Golduck',ident:'p1: Golduck',level:50},fcFormat);
+  const known = syncPokemon(p,{format:fcFormat,clientPokemon:{teraType:'Normal',terastallized:'',volatiles:{}},
+    serverPokemon:{...request({atk:102,def:98,spa:115,spd:100,spe:105}),teraType:'Fairy'}});
+  assert.equal(known.teraType,'Fairy');
+  const active = syncPokemon(p,{format:fcFormat,clientPokemon:{teraType:'Normal',terastallized:'Stellar',volatiles:{}}});
+  assert.equal(active.teraType,'Stellar');
+  assert.equal(active.terastallized,true);
 });

@@ -420,6 +420,9 @@ declare namespace Showdown {
      */
     terastallized: TypeName | '';
 
+    /** Revealed Tera type from the client model, including open team sheets. */
+    teraType?: TypeName | '';
+
     /**
      * @default false
      */

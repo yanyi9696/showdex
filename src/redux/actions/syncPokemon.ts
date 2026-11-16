@@ -85,6 +85,7 @@ export const syncPokemon = (
     'speciesForme',
     'hp',
     'maxhp',
+    'teraType',
     'terastallized', // must be before 'volatiles' (in terms of array indices) !!!
     'status',
     'statusData',
@@ -194,6 +195,27 @@ export const syncPokemon = (
 
         // note: breaking will continue the sync operation
         // (which in this case, if a serverPokemon wasn't provided, we'll use the hp/maxhp from the clientPokemon)
+        break;
+      }
+
+      case 'teraType': {
+        // Team sheets/replayed room data can reveal a type after this calculator
+        // Pokemon was created. Unknown reconnect data must not erase it. Process
+        // this before terastallized; the private server request below also wins.
+        if (clientIllusion || typeof value !== 'string' || !value || value === '???') {
+          return;
+        }
+
+        value = capitalize(value);
+
+        if (!PokemonTypes.includes(value as Showdown.TypeName)) {
+          return;
+        }
+
+        if (value !== prevValue) {
+          syncedPokemon.dirtyTeraType = null;
+        }
+
         break;
       }
 
