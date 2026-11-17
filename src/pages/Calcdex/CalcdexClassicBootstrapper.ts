@@ -64,6 +64,7 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
   public static createCalcdexRoom(
     battleId: string,
     focus?: boolean,
+    background = false,
   ): Showdown.ClientHtmlRoom {
     if (!detectClassicHost(window) || !battleId) {
       return null;
@@ -71,6 +72,9 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
 
     const { rootState, store } = this.Adapter || {};
     const settings = rootState?.showdex?.settings?.calcdex;
+    // Automatic battle initialization stays available without covering a narrow battlefield.
+    // Explicit open() calls and desktop panels retain their existing behavior.
+    const visible = !(background && env.bool('fantasy-embedded') && window.innerWidth < 1152);
 
     // if the openOnPanel setting is falsy, default to the 'showdown' behavior
     const side = env.bool('fantasy-embedded') || settings?.openOnPanel === 'right' || (
@@ -82,7 +86,7 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
     const calcdexRoom = (this as unknown as typeof BootdexClassicBootstrappable).createHtmlRoom(calcdexRoomId, 'Calcdex', {
       side,
       icon: 'calculator',
-      focus,
+      focus: focus && visible,
       maxWidth: 650,
     });
 
@@ -91,7 +95,7 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
     }
 
     if (env.bool('fantasy-embedded')) {
-      calcdexRoom.fantasyCalcdex = { battleId, visible: true };
+      calcdexRoom.fantasyCalcdex = { battleId, visible };
       window.app.updateLayout();
     }
 
@@ -237,7 +241,7 @@ export class CalcdexClassicBootstrapper extends MixinCalcdexBootstrappable(Bootd
     // create the calcdexRoom if it doesn't already exist (shouldn't tho)
     // update (2023/04/22): createCalcdexRoom() will also create a ReactDOM.Root under reactRoot
     if (!this.battle.calcdexHtmlRoom) {
-      this.battle.calcdexHtmlRoom = CalcdexClassicBootstrapper.createCalcdexRoom(this.battleId, true);
+      this.battle.calcdexHtmlRoom = CalcdexClassicBootstrapper.createCalcdexRoom(this.battleId, true, true);
       this.battle.calcdexRoomId = this.battle.calcdexHtmlRoom?.id as Showdown.RoomID; // bacc compat w/ the new v1.3.0 bootloader system for preact
     }
 

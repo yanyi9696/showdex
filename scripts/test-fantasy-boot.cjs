@@ -256,3 +256,32 @@ test('extension builds retain their locale resource fetch path', async () => {
   assert.equal(fetched.length, 2);
   assert.equal(instance.t('battleRecord.wins', { ns: 'hellodex' }), 'W');
 });
+
+
+test('narrow embedded battles initialize Calcdex in the background; explicit open and desktop retain focus', () => {
+  for (const embedded of [true, false]) for (const width of [360, 390, 844, 1152, 1920]) {
+    const calls = [], win = {innerWidth: width, app: {rooms: {}, updateLayout() {}}, Dex: {prefs: () => false}};
+    class Host { static createHtmlRoom(id, title, options) { calls.push(options); return {el: {}}; } }
+    const env = () => ''; env.bool = () => embedded;
+    const {CalcdexClassicBootstrapper: Bootstrap} = loadSource('src/pages/Calcdex/CalcdexClassicBootstrapper.ts', {
+      'react-dom/client': {createRoot: () => ({unmount() {}})},
+      '@showdex/interfaces/calc': {CalcdexPlayerKeys: []}, '@showdex/redux/store': {calcdexSlice: {}},
+      '@showdex/utils/app': {}, '@showdex/utils/battle': {},
+      '@showdex/utils/core': {env, formatId: id => id, nonEmptyObject: v => !!v},
+      '@showdex/utils/debug': {logger, wtf() {}}, '@showdex/utils/host': {detectClassicHost: () => true},
+      '../Bootdex/BootdexClassicBootstrappable': {BootdexClassicBootstrappable: Host},
+      './CalcdexBootstrappable': {MixinCalcdexBootstrappable: base => base},
+      './CalcdexRenderer': {}, './Calcdex.module.scss': {},
+    }, {window: win});
+    for (const battle of ['battle-first', 'battle-next', 'battle-reconnected']) {
+      const automatic = Bootstrap.createCalcdexRoom(battle, true, true);
+      assert.equal(calls.at(-1).focus, !embedded || width >= 1152);
+      if (embedded) assert.equal(automatic.fantasyCalcdex.visible, width >= 1152);
+      const opened = Bootstrap.createCalcdexRoom(battle, true);
+      assert.equal(calls.at(-1).focus, true);
+      if (embedded) assert.equal(opened.fantasyCalcdex.visible, true);
+      assert.ok(opened.reactRoot, 'calculator remains initialized');
+      assert.equal(opened.requestLeave(), true);
+    }
+  }
+});
